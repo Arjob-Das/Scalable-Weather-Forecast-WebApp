@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ============================================================
-#  scalable Weather App - Full Linux/macOS Deploy Script
+#  Scalable Weather App - Full Linux/macOS Deploy Script
 #  Target: Kubernetes (Minikube / MicroK8s / Docker Desktop)
 #
 #  Usage:  ./deploy.sh [--rebuild]
@@ -61,7 +61,7 @@ log_fail() {
 # STEP 0 - Prompt for OpenWeather API Key and inject it
 # ============================================================
 echo -e "\n${CYAN}============================================================${NC}"
-echo -e "${CYAN}  scalable Weather App - Deployment${NC}"
+echo -e "${CYAN}  Scalable Weather App - Deployment${NC}"
 echo -e "${CYAN}============================================================${NC}\n"
 
 if [ -t 0 ]; then
@@ -464,3 +464,4 @@ elif has_cmd open; then
 fi
 
 # The trap registered in STEP 0 will handle scrubbing automatically on exit.
+

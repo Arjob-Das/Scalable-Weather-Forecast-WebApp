@@ -56,3 +56,4 @@ spec:
   selector:
     app: scalable-postgres
   type: ClusterIP
+

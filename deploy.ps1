@@ -1,5 +1,5 @@
 # ============================================================
-#  scalable Weather App - Full Deploy Script
+#  Scalable Weather App - Full Deploy Script
 #  Target: Docker Desktop Kubernetes (Windows)
 #
 #  Usage:  .\deploy.ps1
@@ -66,7 +66,7 @@ function Log-Fail {
 # STEP 0 - Prompt for OpenWeather API Key and inject it
 # ============================================================
 Write-Host "`n============================================================" -ForegroundColor Cyan
-Write-Host "  scalable Weather App - Deployment" -ForegroundColor Cyan
+Write-Host "  Scalable Weather App - Deployment" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -341,3 +341,4 @@ Start-Process "http://localhost:30000"
     $apiKey = $null
     $apiKeySecure = $null
 }
+

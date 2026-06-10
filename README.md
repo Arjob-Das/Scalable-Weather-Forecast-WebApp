@@ -1,4 +1,4 @@
-# scalable: Weather Forecasting System
+# Scalable: Weather Forecasting System
 
 This repository contains four core services:
 - `frontend` — React + TypeScript + Vite application served by Nginx
@@ -76,7 +76,7 @@ python train_local.py             Container starts
 ## 2. File Layout
 
 ```
-scalable/
+Scalable/
 ├── backend/                # Spring Boot API
 ├── frontend/               # React + TypeScript + Vite Application
 │   └── README.md           # [Removed during consolidation]
@@ -599,7 +599,7 @@ This will:
 Save the following as `deploy.ps1` in the project root:
 ```powershell
 # ============================================================
-#  scalable Weather App - Full Deploy Script
+#  Scalable Weather App - Full Deploy Script
 #  Target: Docker Desktop Kubernetes (Windows)
 #
 #  Usage:  .\deploy.ps1
@@ -941,7 +941,7 @@ Save the following as `deploy.sh` in the project root:
 #!/usr/bin/env bash
 
 # ============================================================
-#  scalable Weather App - Full Linux/macOS Deploy Script
+#  Scalable Weather App - Full Linux/macOS Deploy Script
 #  Target: Kubernetes (Minikube / MicroK8s / Docker Desktop)
 #
 #  Usage:  ./deploy.sh [--rebuild]
@@ -1425,3 +1425,4 @@ export default defineConfig([
 
 ### React Compiler
 The React Compiler is not enabled on this template because of its impact on dev & build performance. To add it, refer to the [React Compiler Installation Guide](https://react.dev/learn/react-compiler/installation).
+

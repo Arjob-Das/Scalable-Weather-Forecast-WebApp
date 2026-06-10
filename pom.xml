@@ -7,7 +7,7 @@
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>scalable-parent</name>
-    <description>scalable Root Parent POM</description>
+    <description>Scalable Root Parent POM</description>
 
     <modules>
         <module>backend</module>
@@ -326,3 +326,4 @@
         </profile>
     </profiles>
 </project>
+
