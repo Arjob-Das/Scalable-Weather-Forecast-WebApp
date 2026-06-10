@@ -268,7 +268,7 @@ cd "Scalable-Weather-Forecast-WebApp"
 The application requires an **OpenWeather API Key** to fetch geocoding information and current weather data.
 
 > **Never hardcode the API key into any file.** The codebase uses the placeholder text
-> `YOUR_OPENWEATHER_API_KEY` wherever the key belongs. The `manage_api_keys.py` utility
+> `YOUR_OPENWEATHER_API_KEYYOUR_OPENWEATHER_API_KEY` wherever the key belongs. The `manage_api_keys.py` utility
 > handles injecting the real key and scrubbing it back out — no key is ever persisted.
 
 #### Deployment scripts (recommended)

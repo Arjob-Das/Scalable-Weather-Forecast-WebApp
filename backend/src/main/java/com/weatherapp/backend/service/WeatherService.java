@@ -20,7 +20,7 @@ public class WeatherService {
     @Value("${ml.service.url:http://localhost:8000}")
     private String mlServiceUrl;
 
-    @Value("${openweather.api.key:YOUR_OPENWEATHER_API_KEY}")
+    @Value("${openweather.api.key:YOUR_OPENWEATHER_API_KEYYOUR_OPENWEATHER_API_KEY}")
     private String openWeatherApiKey;
 
     public WeatherService(WeatherQueryRepository repository) {

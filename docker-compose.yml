@@ -45,7 +45,7 @@ services:
       - DB_PASSWORD=postgres
       - ML_HOST=ml-service
       - ML_PORT=8000
-      - OPENWEATHER_API_KEY=YOUR_OPENWEATHER_API_KEY
+      - OPENWEATHER_API_KEY=YOUR_OPENWEATHER_API_KEYYOUR_OPENWEATHER_API_KEY
     depends_on:
       postgres:
         condition: service_healthy

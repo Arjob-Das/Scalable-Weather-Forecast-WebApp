@@ -48,7 +48,7 @@ spec:
             - name: ML_PORT
               value: "8000"
             - name: OPENWEATHER_API_KEY
-              value: "YOUR_OPENWEATHER_API_KEY"
+              value: "YOUR_OPENWEATHER_API_KEYYOUR_OPENWEATHER_API_KEY"
 ---
 apiVersion: v1
 kind: Service
