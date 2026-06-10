@@ -1014,7 +1014,7 @@ apt_install() {
 # 1. Check Python 3
 if ! has_cmd python3; then
     if has_cmd apt-get; then
-        apt_install "python3 python3-pip python3-venv"
+        apt_install "apt install python3.12 python3.12-venv python3.12-pip"
     else
         log_fail "python3 is not installed. Please install Python 3.10+ and re-run."
     fi
@@ -1122,14 +1122,26 @@ fi
 # STEP 2 - Setup Python dependencies
 # ============================================================
 log_step 2 "Setting up Python virtual environment & training packages..."
-cd "\$ML_DIR"
+cd "$ML_DIR"
+
+PYTHON_BIN="python3.12"
+
+if ! command -v $PYTHON_BIN >/dev/null 2>&1; then
+    log_error "Python 3.12 is not installed."
+    echo "Install it using:"
+    echo "sudo apt install python3.12 python3.12-venv"
+    exit 1
+fi
 
 if [ ! -d "venv" ]; then
-    python3 -m venv venv
-    log_ok "Created python3 virtual environment 'venv'"
+    $PYTHON_BIN -m venv venv
+    log_ok "Created Python 3.12 virtual environment 'venv'"
 fi
 
 source venv/bin/activate
+
+python --version
+pip install --upgrade pip setuptools wheel
 
 log_info "Installing requirements.txt in virtual environment..."
 pip install -q --upgrade pip
