@@ -7,6 +7,33 @@ This repository contains four core services:
 - `postgres` — PostgreSQL database
 
 ---
+# Table of Contents
+
+* [1. System Architecture & Flow](#1-system-architecture--flow)
+* [2. File Layout](#2-file-layout)
+* [3. Environment Setup](#3-environment-setup)
+
+  * [Windows Installation](#windows-installation)
+  * [Linux Installation (Ubuntu/Debian-based)](#linux-installation-ubuntudebian-based)
+* [4. Repository & Local Build Setup](#4-repository--local-build-setup)
+
+  * [Clone Repository](#clone-repository)
+  * [API Key Configuration](#api-key-configuration)
+  * [Local Build & Execution Commands](#local-build--execution-commands)
+  * [Summary of Maven Commands](#summary-of-maven-commands)
+* [5. Machine Learning Pipeline: Training & API](#5-machine-learning-pipeline-training--api)
+
+  * [Step 1: Local Training](#step-1-local-training-must-run-before-building-docker-images)
+  * [Step 2: API & Prediction Services](#step-2-api--prediction-services)
+* [6. Docker Compose Deployment](#6-docker-compose-deployment)
+* [7. Kubernetes Deployment](#7-kubernetes-deployment)
+
+  * [Automated Kubernetes Deployment](#automated-kubernetes-deployment)
+  * [Windows Deployment (`deploy.ps1`)](#1-windows-deployment-deployps1)
+  * [Linux & macOS Deployment (`deploy.sh`)](#2-linux--macos-deployment-deploysh)
+* [8. Frontend Development Notes](#8-frontend-development-notes-react--vite)
+
+---
 
 ## 1. System Architecture & Flow
 
@@ -373,6 +400,36 @@ cd ml-service
 pip install -r requirements.txt
 cd ..
 ```
+
+#### Summary of Maven Commands
+
+| Command                           | What It Does                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| `mvn clean`                       | Deletes all `target/` build directories                                      |
+| `mvn compile`                     | Compiles Java source code                                                    |
+| `mvn test`                        | Runs unit tests                                                              |
+| `mvn package`                     | Builds JAR/WAR artifacts                                                     |
+| `mvn install`                     | Builds + installs artifacts into local Maven repo (`~/.m2`)                  |
+| `mvn clean install`               | Clean + compile + test + package + install                                   |
+| `mvn clean package`               | Clean + build packages only                                                  |
+| `mvn -DskipTests package`         | Build without running tests                                                  |
+| `mvn dependency:tree`             | Shows dependency tree                                                        |
+| `mvn dependency:resolve`          | Downloads dependencies                                                       |
+| `mvn spring-boot:run`             | Runs Spring Boot app directly                                                |
+| `mvn -pl backend spring-boot:run` | Runs only backend module                                                     |
+| `mvn -Ptrain`                     | Runs `ml-service/train_local.py` via exec plugin                             |
+| `mvn -Pdeploy-windows`            | Runs `deploy.ps1` (includes API key injection + automatic scrubbing)         |
+| `mvn -Pdeploy-windows-rebuild`    | Runs `deploy.ps1 rebuild` (includes API key injection + automatic scrubbing) |
+| `mvn -Pdeploy-linux`              | Runs `deploy.sh` (includes API key injection + automatic scrubbing)          |
+| `mvn -Pdeploy-linux-rebuild`      | Runs `deploy.sh rebuild` (includes API key injection + automatic scrubbing)  |
+| `mvn -Pdeploy-linux-sudo`         | Runs `sudo bash deploy.sh`                                                   |
+| `mvn -Pdeploy-linux-sudo-rebuild` | Runs `sudo bash deploy.sh rebuild`                                           |
+| `mvn -Pinject-key`                | Runs `manage_api_keys.py inject`                                             |
+| `mvn -Pscrub-key`                 | Runs `manage_api_keys.py scrub`                                              |
+| `mvn help:effective-pom`          | Shows merged effective POM                                                   |
+| `mvn validate`                    | Validates project structure                                                  |
+| `mvn verify`                      | Runs full verification after integration tests                               |
+| `mvn site`                        | Generates project documentation site                                         |
 
 ---
 
