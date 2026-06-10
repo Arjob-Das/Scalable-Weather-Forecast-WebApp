@@ -258,7 +258,7 @@ pip3 --version
 
 ### Clone Repository
 ```powershell
-git clone https://github.com/Arjob-Das/Ai-Agent-Benchmarks.git
+git clone https://github.com/Arjob-Das/Scalable-Weather-Forecast-WebApp.git
 cd "Scalable-Weather-Forecast-WebApp"
 ```
 
