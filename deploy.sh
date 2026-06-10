@@ -5,6 +5,11 @@
 #  Target: Kubernetes (Minikube / MicroK8s / Docker Desktop)
 #
 #  Usage:  ./deploy.sh [--rebuild]
+#
+#  Flow:
+#    0. Prompt for OpenWeather API key, inject into config files
+#    1-8. Build & Deploy as usual
+#    9. Scrub API key from config files (always, even on failure)
 # ============================================================
 
 set -eo pipefail
@@ -53,13 +58,54 @@ log_fail() {
 }
 
 # ============================================================
+# STEP 0 - Prompt for OpenWeather API Key and inject it
+# ============================================================
+echo -e "\n${CYAN}============================================================${NC}"
+echo -e "${CYAN}  scalable Weather App - Deployment${NC}"
+echo -e "${CYAN}============================================================${NC}\n"
+
+if [ -t 0 ]; then
+    # Running interactively — use silent read
+    read -s -r -p "Enter your OpenWeather API Key: " OPENWEATHER_API_KEY
+    echo
+else
+    # Running non-interactively (piped) — read normally
+    echo -n "Enter your OpenWeather API Key: "
+    read -r OPENWEATHER_API_KEY
+fi
+
+if [ -z "$OPENWEATHER_API_KEY" ]; then
+    echo -e "${RED}[FAIL] No API key provided. Aborting.${NC}"
+    exit 1
+fi
+
+# Scrub function — always called on exit via trap
+scrub_api_key() {
+    echo -e "\n  Scrubbing API key from config files..."
+    if python3 "$ROOT/manage_api_keys.py" scrub "$OPENWEATHER_API_KEY" 2>/dev/null; then
+        echo -e "  ${GREEN}[OK] API key scrubbed. Config files restored to placeholders.${NC}\n"
+    else
+        echo -e "  ${YELLOW}[!!] WARNING: API key scrub may have failed."
+        echo -e "       Run manually: python3 manage_api_keys.py scrub <your-key>${NC}\n"
+    fi
+    unset OPENWEATHER_API_KEY
+}
+
+# Register the scrub to run on any exit (success or error)
+trap scrub_api_key EXIT
+
+echo "  Injecting API key into config files..."
+python3 "$ROOT/manage_api_keys.py" inject "$OPENWEATHER_API_KEY"
+echo -e "  ${GREEN}[OK] API key injected.${NC}\n"
+
+# ============================================================
 # STEP 1 - Check and Install Dependencies
 # ============================================================
 log_step 1 "Verifying and installing dependencies..."
 
 # Helper function to check command existence
 has_cmd() {
-    command -v "$1" >/dev/null 2>&1
+    command -v "$1" > /dev/null 2>&1
 }
 
 # Helper function to install using apt-get if on Ubuntu/Debian
@@ -416,3 +462,5 @@ if has_cmd xdg-open; then
 elif has_cmd open; then
     open "http://${cluster_ip}:30000" &
 fi
+
+# The trap registered in STEP 0 will handle scrubbing automatically on exit.

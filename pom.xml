@@ -254,5 +254,75 @@
                 </plugins>
             </build>
         </profile>
+
+        <!-- ===================================================== -->
+        <!-- Inject API key: asks for key, replaces placeholders    -->
+        <!-- Usage: mvn -Pinject-key                               -->
+        <!-- ===================================================== -->
+        <profile>
+            <id>inject-key</id>
+            <build>
+                <defaultGoal>initialize</defaultGoal>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>run-inject-key</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>python</executable>
+                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                    <useMavenLogger>false</useMavenLogger>
+                                    <arguments>
+                                        <argument>manage_api_keys.py</argument>
+                                        <argument>inject</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- ===================================================== -->
+        <!-- Scrub API key: asks for key, restores all placeholders -->
+        <!-- Usage: mvn -Pscrub-key                                -->
+        <!-- ===================================================== -->
+        <profile>
+            <id>scrub-key</id>
+            <build>
+                <defaultGoal>initialize</defaultGoal>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>run-scrub-key</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>python</executable>
+                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                    <useMavenLogger>false</useMavenLogger>
+                                    <arguments>
+                                        <argument>manage_api_keys.py</argument>
+                                        <argument>scrub</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 </project>

@@ -236,15 +236,65 @@ cd "Scalable-Weather-Forecast-WebApp"
 ```
 
 ### API Key Configuration
+
 The application requires an **OpenWeather API Key** to fetch geocoding information and current weather data.
 
-Before running the application, you must replace the `YOUR_OPENWEATHER_API_KEY` placeholder with your actual OpenWeather API key in the following locations:
+> **Never hardcode the API key into any file.** The codebase uses the placeholder text
+> `YOUR_OPENWEATHER_API_KEY` wherever the key belongs. The `manage_api_keys.py` utility
+> handles injecting the real key and scrubbing it back out — no key is ever persisted.
 
-1. **Docker Compose**: Set `OPENWEATHER_API_KEY` in [docker-compose.yml](file:///f:/Self_Study/Scalable%20Weather%20Forecast%20WebApp/docker-compose.yml).
-2. **Kubernetes**: Update the env variable `OPENWEATHER_API_KEY` in [k8s/backend.yaml](file:///f:/Self_Study/Scalable%20Weather%20Forecast%20WebApp/k8s/backend.yaml).
-3. **Local / Maven Execution**: Update the default fallback in [application.properties](file:///f:/Self_Study/Scalable%20Weather%20Forecast%20WebApp/backend/src/main/resources/application.properties) or set the environment variable `OPENWEATHER_API_KEY` on your machine:
-   - **Windows (PowerShell)**: `$env:OPENWEATHER_API_KEY="your_api_key"`
-   - **Linux/macOS (Bash)**: `export OPENWEATHER_API_KEY="your_api_key"`
+#### Deployment scripts (recommended)
+
+Both `deploy.ps1` (Windows) and `deploy.sh` (Linux/macOS) **automatically prompt** for the API key at startup, inject it into all config files, run the full deployment, and **scrub it back** to placeholders when finished — even if the deployment fails:
+
+```powershell
+# Windows
+.\deploy.ps1
+```
+```bash
+# Linux / macOS
+./deploy.sh
+```
+
+#### Manual injection / scrubbing
+
+Use `manage_api_keys.py` when you need to inject the key for a local run (e.g. `docker compose up`) and restore it afterward:
+
+```bash
+# Inject the real key (prompts if key not supplied)
+python manage_api_keys.py inject <YOUR_KEY>
+
+# Restore placeholder text when finished
+python manage_api_keys.py scrub <YOUR_KEY>
+```
+
+Or via Maven:
+```bash
+# Inject key (will prompt interactively)
+mvn -Pinject-key
+
+# Scrub / restore placeholders
+mvn -Pscrub-key
+```
+
+#### Files that contain the placeholder
+
+| File | Variable / Property |
+|------|---------------------|
+| `backend/src/main/resources/application.properties` | `openweather.api.key` |
+| `docker-compose.yml` | `OPENWEATHER_API_KEY` env var |
+| `k8s/backend.yaml` | `OPENWEATHER_API_KEY` env var |
+
+For running the backend locally without the deploy script, set the environment variable directly and start Spring Boot — the app reads it via `@Value("${openweather.api.key}")`:
+```powershell
+# Windows PowerShell
+$env:OPENWEATHER_API_KEY = "your_api_key"
+mvn -pl backend spring-boot:run
+```
+```bash
+# Linux / macOS
+OPENWEATHER_API_KEY=your_api_key mvn -pl backend spring-boot:run
+```
 
 ### Local Build & Execution Commands
 
@@ -286,6 +336,15 @@ mvn -Ptrain
 ##### Linux & macOS Kubernetes Deployment (Elevated Sudo/Root permissions)
 * **Standard run:** `mvn -Pdeploy-linux-sudo`
 * **Clean rebuild:** `mvn -Pdeploy-linux-sudo-rebuild`
+
+##### API Key Management (Maven profiles)
+```bash
+# Inject real API key into config files (prompts interactively)
+mvn -Pinject-key
+
+# Scrub / restore placeholder after a local run
+mvn -Pscrub-key
+```
 
 ---
 

@@ -5,6 +5,7 @@
 #  Usage:  .\deploy.ps1
 #
 #  What this script does (in order):
+#    0. Prompt for OpenWeather API key, inject into config files
 #    1. Install Python dependencies for training
 #    2. Run train_local.py  (CUDA pre-training - skipped if artefacts already exist)
 #    3. Build Docker images
@@ -13,6 +14,7 @@
 #    6. Deploy ML Service        + wait PVCs Bound + wait Ready
 #    7. Deploy Backend           + wait Ready
 #    8. Deploy Frontend          + wait Ready
+#    9. Scrub API key from config files (always, even on failure)
 # ============================================================
 param(
     [string]$Mode = ""
@@ -36,29 +38,56 @@ $TOTAL = 8
 
 function Log-Step {
     param([int]$n, [string]$msg)
-    Write-Host "`n[$(Get-Date -f 'HH:mm:ss')] >>> STEP $n/$TOTAL - $msg" -ForegroundColor Cyan 
+    Write-Host "`n[$(Get-Date -f 'HH:mm:ss')] >>> STEP $n/$TOTAL - $msg" -ForegroundColor Cyan
 }
 
 function Log-OK {
     param([string]$msg)
-    Write-Host "    [OK]   $msg" -ForegroundColor Green 
+    Write-Host "    [OK]   $msg" -ForegroundColor Green
 }
 
 function Log-Warn {
     param([string]$msg)
-    Write-Host "    [!!]   $msg" -ForegroundColor Yellow 
+    Write-Host "    [!!]   $msg" -ForegroundColor Yellow
 }
 
 function Log-Info {
     param([string]$msg)
-    Write-Host "           $msg" -ForegroundColor DarkGray 
+    Write-Host "           $msg" -ForegroundColor DarkGray
 }
 
 function Log-Fail {
     param([string]$msg)
     Write-Host "`n    [FAIL] $msg" -ForegroundColor Red
+    throw $msg
+}
+
+# ============================================================
+# STEP 0 - Prompt for OpenWeather API Key and inject it
+# ============================================================
+Write-Host "`n============================================================" -ForegroundColor Cyan
+Write-Host "  scalable Weather App - Deployment" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ""
+
+$apiKeySecure = Read-Host "Enter your OpenWeather API Key" -AsSecureString
+$apiKey = [System.Net.NetworkCredential]::new("", $apiKeySecure).Password
+
+if ([string]::IsNullOrWhiteSpace($apiKey)) {
+    Write-Host "[FAIL] No API key provided. Aborting." -ForegroundColor Red
     exit 1
 }
+
+Write-Host "  Injecting API key into config files..." -ForegroundColor DarkGray
+python "$ROOT\manage_api_keys.py" inject $apiKey
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[FAIL] API key injection failed. Aborting." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  [OK] API key injected." -ForegroundColor Green
+
+# Wrap the entire deployment in try/finally so the key is always scrubbed
+try {
 
 # ============================================================
 # STEP 1 - Install Python training dependencies
@@ -296,3 +325,19 @@ Write-Host "    then open: http://localhost:8000/docs" -ForegroundColor Yellow
 Write-Host "============================================================`n" -ForegroundColor Cyan
 
 Start-Process "http://localhost:30000"
+
+} finally {
+    # ============================================================
+    # STEP 9 - Scrub API key (always runs, even on error)
+    # ============================================================
+    Write-Host "`n  Scrubbing API key from config files..." -ForegroundColor DarkGray
+    python "$ROOT\manage_api_keys.py" scrub $apiKey
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  [OK] API key scrubbed. Config files restored to placeholders.`n" -ForegroundColor Green
+    } else {
+        Write-Host "  [!!] WARNING: API key scrub may have failed. Run manually:`n       python manage_api_keys.py scrub <your-key>`n" -ForegroundColor Yellow
+    }
+    # Clear the key from memory
+    $apiKey = $null
+    $apiKeySecure = $null
+}

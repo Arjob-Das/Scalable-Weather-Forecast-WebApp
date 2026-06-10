@@ -45,10 +45,10 @@ function App() {
     }
     const delayDebounce = setTimeout(async () => {
       try {
-        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=5&language=en&format=json`);
+        const res = await fetch(`${BACKEND_URL}/api/weather/search?query=${encodeURIComponent(city)}`);
         if (res.ok) {
           const data = await res.json();
-          setSuggestions(data.results || []);
+          setSuggestions(data || []);
         }
       } catch (err) {
         console.error('Failed to fetch suggestions:', err);

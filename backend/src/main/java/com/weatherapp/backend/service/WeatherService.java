@@ -29,17 +29,38 @@ public class WeatherService {
     }
 
     public Map<String, Object> geocodeCity(String cityName) {
+        if (cityName == null || cityName.trim().isEmpty()) {
+            throw new RuntimeException("City name cannot be empty");
+        }
+
+        // Clean and tokenize the input query
+        String[] tokens = cityName.trim().split("[\\s,-]+");
+        if (tokens.length == 0 || tokens[0].isEmpty()) {
+            throw new RuntimeException("City name cannot be empty");
+        }
+
+        String primarySearchTerm = tokens[0];
+
+        // Build regex pattern from tokens: token1.*token2.*token3
+        StringBuilder regexPatternBuilder = new StringBuilder();
+        for (int i = 0; i < tokens.length; i++) {
+            if (i > 0) {
+                regexPatternBuilder.append(".*");
+            }
+            regexPatternBuilder.append(java.util.regex.Pattern.quote(tokens[i].toLowerCase()));
+        }
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regexPatternBuilder.toString(), java.util.regex.Pattern.CASE_INSENSITIVE);
+
+        // Try OpenWeather first
         try {
-            String geocodeUrl = "https://api.openweathermap.org/geo/1.0/direct?q=" + cityName + "&limit=1&appid=" + openWeatherApiKey;
+            String geocodeUrl = "https://api.openweathermap.org/geo/1.0/direct?q=" + primarySearchTerm + "&limit=10&appid=" + openWeatherApiKey;
             ResponseEntity<List> response = restTemplate.getForEntity(geocodeUrl, List.class);
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null && !response.getBody().isEmpty()) {
-                Map<String, Object> result = (Map<String, Object>) response.getBody().get(0);
-                Map<String, Object> locationData = new HashMap<>();
-                locationData.put("latitude", result.get("lat"));
-                locationData.put("longitude", result.get("lon"));
-                locationData.put("name", result.get("name"));
-                locationData.put("country", result.get("country"));
-                return locationData;
+                List<Map<String, Object>> results = (List<Map<String, Object>>) response.getBody();
+                Map<String, Object> bestMatch = findBestMatchOpenWeather(results, cityName, tokens[0], pattern);
+                if (bestMatch != null) {
+                    return bestMatch;
+                }
             }
         } catch (Exception e) {
             System.err.println("Warning: OpenWeather geocoding failed, trying fallback to Open-Meteo: " + e.getMessage());
@@ -47,18 +68,15 @@ public class WeatherService {
 
         // Fallback to Open-Meteo Geocoding
         try {
-            String openMeteoGeocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + cityName + "&count=1&language=en&format=json";
+            String openMeteoGeocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + primarySearchTerm + "&count=20&language=en&format=json";
             Map<String, Object> response = restTemplate.getForObject(openMeteoGeocodeUrl, Map.class);
             if (response != null && response.containsKey("results")) {
                 List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
                 if (results != null && !results.isEmpty()) {
-                    Map<String, Object> result = results.get(0);
-                    Map<String, Object> locationData = new HashMap<>();
-                    locationData.put("latitude", result.get("latitude"));
-                    locationData.put("longitude", result.get("longitude"));
-                    locationData.put("name", result.get("name"));
-                    locationData.put("country", result.get("country"));
-                    return locationData;
+                    Map<String, Object> bestMatch = findBestMatchOpenMeteo(results, cityName, tokens[0], pattern);
+                    if (bestMatch != null) {
+                        return bestMatch;
+                    }
                 }
             }
         } catch (Exception e) {
@@ -66,6 +84,218 @@ public class WeatherService {
         }
 
         throw new RuntimeException("City not found or geocoding services unavailable: " + cityName);
+    }
+
+    private Map<String, Object> findBestMatchOpenWeather(List<Map<String, Object>> results, String fullQuery, String firstToken, java.util.regex.Pattern pattern) {
+        Map<String, Object> exactMatch = null;
+        Map<String, Object> regexMatch = null;
+
+        for (Map<String, Object> result : results) {
+            String name = (String) result.get("name");
+            String countryCode = (String) result.get("country");
+            String state = (String) result.get("state");
+
+            String countryName = countryCode;
+            if (countryCode != null) {
+                try {
+                    countryName = new java.util.Locale("", countryCode).getDisplayCountry(java.util.Locale.US);
+                } catch (Exception e) {
+                    // Ignore
+                }
+            }
+
+            String fullName = name + ", " + (state != null ? state + ", " : "") + countryName;
+
+            // Check exact name match (case-insensitive) for the first token
+            if (name != null && name.equalsIgnoreCase(firstToken)) {
+                if (exactMatch == null) {
+                    exactMatch = result;
+                }
+            }
+
+            // Check regex match against the full name
+            if (pattern.matcher(fullName).find()) {
+                if (regexMatch == null) {
+                    regexMatch = result;
+                }
+            }
+        }
+
+        Map<String, Object> selected = exactMatch != null ? exactMatch : (regexMatch != null ? regexMatch : results.get(0));
+
+        Map<String, Object> locationData = new HashMap<>();
+        locationData.put("latitude", ((Number) selected.get("lat")).doubleValue());
+        locationData.put("longitude", ((Number) selected.get("lon")).doubleValue());
+        locationData.put("name", selected.get("name"));
+        locationData.put("country", selected.get("country"));
+        return locationData;
+    }
+
+    private Map<String, Object> findBestMatchOpenMeteo(List<Map<String, Object>> results, String fullQuery, String firstToken, java.util.regex.Pattern pattern) {
+        Map<String, Object> exactMatch = null;
+        Map<String, Object> regexMatch = null;
+
+        for (Map<String, Object> result : results) {
+            String name = (String) result.get("name");
+            String country = (String) result.get("country");
+            String admin1 = (String) result.get("admin1");
+
+            String fullName = name + ", " + (admin1 != null ? admin1 + ", " : "") + (country != null ? country : "");
+
+            // Check exact name match (case-insensitive) for the first token
+            if (name != null && name.equalsIgnoreCase(firstToken)) {
+                if (exactMatch == null) {
+                    exactMatch = result;
+                }
+            }
+
+            // Check regex match against the full name
+            if (pattern.matcher(fullName).find()) {
+                if (regexMatch == null) {
+                    regexMatch = result;
+                }
+            }
+        }
+
+        Map<String, Object> selected = exactMatch != null ? exactMatch : (regexMatch != null ? regexMatch : results.get(0));
+
+        Map<String, Object> locationData = new HashMap<>();
+        locationData.put("latitude", ((Number) selected.get("latitude")).doubleValue());
+        locationData.put("longitude", ((Number) selected.get("longitude")).doubleValue());
+        locationData.put("name", selected.get("name"));
+        locationData.put("country", selected.get("country"));
+        return locationData;
+    }
+
+    public List<Map<String, Object>> searchCities(String query) {
+        if (query == null || query.trim().length() < 2) {
+            return List.of();
+        }
+
+        String[] tokens = query.trim().split("[\\s,-]+");
+        if (tokens.length == 0 || tokens[0].isEmpty()) {
+            return List.of();
+        }
+
+        String primarySearchTerm = tokens[0];
+
+        // Build regex pattern from tokens: token1.*token2.*token3
+        StringBuilder regexPatternBuilder = new StringBuilder();
+        for (int i = 0; i < tokens.length; i++) {
+            if (i > 0) {
+                regexPatternBuilder.append(".*");
+            }
+            regexPatternBuilder.append(java.util.regex.Pattern.quote(tokens[i].toLowerCase()));
+        }
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regexPatternBuilder.toString(), java.util.regex.Pattern.CASE_INSENSITIVE);
+
+        List<Map<String, Object>> suggestions = new java.util.ArrayList<>();
+
+        // Try OpenWeather first
+        try {
+            String geocodeUrl = "https://api.openweathermap.org/geo/1.0/direct?q=" + primarySearchTerm + "&limit=10&appid=" + openWeatherApiKey;
+            ResponseEntity<List> response = restTemplate.getForEntity(geocodeUrl, List.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                List<Map<String, Object>> results = (List<Map<String, Object>>) response.getBody();
+                
+                List<Map<String, Object>> exactMatches = new java.util.ArrayList<>();
+                List<Map<String, Object>> otherMatches = new java.util.ArrayList<>();
+                for (Map<String, Object> res : results) {
+                    String name = (String) res.get("name");
+                    String state = (String) res.get("state");
+                    String countryCode = (String) res.get("country");
+                    String countryName = countryCode;
+                    if (countryCode != null) {
+                        try {
+                            countryName = new java.util.Locale("", countryCode).getDisplayCountry(java.util.Locale.US);
+                        } catch (Exception e) {
+                            // Ignore
+                        }
+                    }
+
+                    String fullName = name + ", " + (state != null ? state + ", " : "") + countryName;
+                    if (pattern.matcher(fullName).find()) {
+                        Map<String, Object> sug = new HashMap<>();
+                        sug.put("id", "ow-" + res.get("lat") + "-" + res.get("lon"));
+                        sug.put("name", name);
+                        sug.put("admin1", state);
+                        sug.put("country", countryName);
+                        sug.put("latitude", res.get("lat"));
+                        sug.put("longitude", res.get("lon"));
+                        
+                        if (name != null && name.equalsIgnoreCase(tokens[0])) {
+                            exactMatches.add(sug);
+                        } else {
+                            otherMatches.add(sug);
+                        }
+                    }
+                }
+                suggestions.addAll(exactMatches);
+                suggestions.addAll(otherMatches);
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: OpenWeather search suggestions failed: " + e.getMessage());
+        }
+
+        // Try Open-Meteo to supplement or fallback
+        if (suggestions.size() < 5) {
+            try {
+                String openMeteoGeocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=" + primarySearchTerm + "&count=20&language=en&format=json";
+                Map<String, Object> response = restTemplate.getForObject(openMeteoGeocodeUrl, Map.class);
+                if (response != null && response.containsKey("results")) {
+                    List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
+                    if (results != null) {
+                        List<Map<String, Object>> exactMatches = new java.util.ArrayList<>();
+                        List<Map<String, Object>> otherMatches = new java.util.ArrayList<>();
+                        for (Map<String, Object> res : results) {
+                            String name = (String) res.get("name");
+                            String admin1 = (String) res.get("admin1");
+                            String country = (String) res.get("country");
+
+                            String fullName = name + ", " + (admin1 != null ? admin1 + ", " : "") + (country != null ? country : "");
+                            if (pattern.matcher(fullName).find()) {
+                                boolean duplicate = false;
+                                double lat = ((Number) res.get("latitude")).doubleValue();
+                                double lon = ((Number) res.get("longitude")).doubleValue();
+                                for (Map<String, Object> existing : suggestions) {
+                                    if (existing.get("name").toString().equalsIgnoreCase(name) &&
+                                        existing.get("country").toString().equalsIgnoreCase(country)) {
+                                        duplicate = true;
+                                        break;
+                                    }
+                                }
+                                if (!duplicate) {
+                                    Map<String, Object> sug = new HashMap<>();
+                                    sug.put("id", "om-" + res.get("id"));
+                                    sug.put("name", name);
+                                    sug.put("admin1", admin1);
+                                    sug.put("country", country);
+                                    sug.put("latitude", lat);
+                                    sug.put("longitude", lon);
+                                    
+                                    if (name != null && name.equalsIgnoreCase(tokens[0])) {
+                                        exactMatches.add(sug);
+                                    } else {
+                                        otherMatches.add(sug);
+                                    }
+                                }
+                            }
+                        }
+                        suggestions.addAll(exactMatches);
+                        suggestions.addAll(otherMatches);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Warning: Open-Meteo search suggestions failed: " + e.getMessage());
+            }
+        }
+
+
+
+        if (suggestions.size() > 5) {
+            return suggestions.subList(0, 5);
+        }
+        return suggestions;
     }
 
     private int mapOpenWeatherIdToWmoCode(int owId) {

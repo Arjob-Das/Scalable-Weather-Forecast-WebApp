@@ -50,6 +50,16 @@ public class WeatherController {
         }
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<Map<String, Object>>> searchCities(@RequestParam String query) {
+        try {
+            List<Map<String, Object>> suggestions = weatherService.searchCities(query);
+            return ResponseEntity.ok(suggestions);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
     @GetMapping("/history")
     public ResponseEntity<List<WeatherQuery>> getHistory() {
         try {
