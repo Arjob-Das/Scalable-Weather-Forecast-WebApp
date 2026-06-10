@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+models/
+charts/
+.git/
+.gitignore
+.dockerignore

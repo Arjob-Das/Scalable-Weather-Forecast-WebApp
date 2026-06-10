@@ -1,0 +1,15 @@
+.idea/
+.vscode/
+.env
+.DS_Store
+
+**/target/
+**/node_modules/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/dist/
+**/charts/
+**/models/
+**/weather_cache/
+**/pretrained/

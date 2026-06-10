@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: weather_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=weatherdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d weatherdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ml-service:
+    build: ./ml-service
+    image: scalable-ml-service:latest
+    container_name: weather_ml_service
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./ml-service/models:/app/models          # fine-tuned cache + prediction data
+      - ./ml-service/pretrained:/app/pretrained  # updated model weights persist on host
+      - ./ml-service/charts:/app/charts
+    extra_hosts:
+      - "api.open-meteo.com:5.9.98.184"
+
+  backend:
+    build: ./backend
+    image: scalable-backend:latest
+    container_name: weather_backend
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=weatherdb
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - ML_HOST=ml-service
+      - ML_PORT=8000
+      - OPENWEATHER_API_KEY=YOUR_OPENWEATHER_API_KEY
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-service:
+        condition: service_started
+    extra_hosts:
+      - "api.open-meteo.com:5.9.98.184"
+
+  frontend:
+    build: ./frontend
+    image: scalable-frontend:latest
+    container_name: weather_frontend
+    ports:
+      - "3001:80"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

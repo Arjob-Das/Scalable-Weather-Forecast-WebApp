@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scalable-postgres
+  namespace: scalable-weather-app
+  labels:
+    app: scalable-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scalable-postgres
+  template:
+    metadata:
+      labels:
+        app: scalable-postgres
+    spec:
+      containers:
+        - name: scalable-weather-app-postgres
+          image: scalable-weather-app/postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: weatherdb
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: postgres
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scalable-postgres
+  namespace: scalable-weather-app
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: scalable-postgres
+  type: ClusterIP

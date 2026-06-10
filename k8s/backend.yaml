@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scalable-backend
+  namespace: scalable-weather-app
+  labels:
+    app: scalable-backend
+spec:
+  replicas: 2 # Scalable!
+  selector:
+    matchLabels:
+      app: scalable-backend
+  template:
+    metadata:
+      labels:
+        app: scalable-backend
+    spec:
+      hostAliases:
+        - ip: "5.9.98.184"
+          hostnames:
+            - "api.open-meteo.com"
+      containers:
+        - name: scalable-weather-app-backend
+          image: scalable-weather-app/backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: scalable-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: weatherdb
+            - name: DB_USER
+              value: postgres
+            - name: DB_PASSWORD
+              value: postgres
+            - name: ML_HOST
+              value: scalable-ml-service
+            - name: ML_PORT
+              value: "8000"
+            - name: OPENWEATHER_API_KEY
+              value: "YOUR_OPENWEATHER_API_KEY"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scalable-backend
+  namespace: scalable-weather-app
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080 # Exposes backend to host machine or other cluster nodes
+  selector:
+    app: scalable-backend
+  type: NodePort

@@ -1,0 +1,129 @@
+---
+# scalable-ml-service resources config
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scalable-ml-service
+  namespace: scalable-weather-app
+  labels:
+    app: scalable-ml-service
+spec:
+  # Single replica ensures train_city.py updates are not split
+  # across pods (no distributed write conflict on shared PVC).
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scalable-ml-service
+  template:
+    metadata:
+      labels:
+        app: scalable-ml-service
+    spec:
+      hostAliases:
+        - ip: "5.9.98.184"
+          hostnames:
+            - "api.open-meteo.com"
+      containers:
+        - name: scalable-weather-app-ml-service
+          image: scalable-weather-app/ml-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          volumeMounts:
+            # Per-city fine-tuned cache + prediction data (persisted)
+            - name: ml-models
+              mountPath: /app/models
+            # Pretrained artefacts — also writable so train_city.py can
+            # update global_weather_model.pth and training_cities.json
+            - name: ml-pretrained
+              mountPath: /app/pretrained
+            # Charts directory (ephemeral is fine — regenerated on demand)
+            - name: ml-charts
+              mountPath: /app/charts
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+      initContainers:
+        # Copy the baked-in pretrained/ artefacts to the writable PVC
+        # on first start (when the PVC is empty).  Subsequent starts skip
+        # the copy because the marker file already exists.
+        - name: init-pretrained
+          image: scalable-weather-app/ml-service:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              RESEED=false
+              if [ ! -f /app/pretrained/global_weather_model.pth ] || [ ! -f /app/pretrained/model_config.json ]; then
+                RESEED=true
+              else
+                BAKED_DIM=$(grep -o '"input_dim":\s*[0-9]*' /app/pretrained_baked/model_config.json | grep -o '[0-9]*')
+                PVC_DIM=$(grep -o '"input_dim":\s*[0-9]*' /app/pretrained/model_config.json | grep -o '[0-9]*')
+                if [ "$BAKED_DIM" != "$PVC_DIM" ]; then
+                  echo "Config mismatch: baked input_dim ($BAKED_DIM) != PVC input_dim ($PVC_DIM). Forcing re-seeding."
+                  RESEED=true
+                else
+                  BAKED_SIZE=$(stat -c%s /app/pretrained_baked/global_weather_model.pth)
+                  PVC_SIZE=$(stat -c%s /app/pretrained/global_weather_model.pth)
+                  if [ "$BAKED_SIZE" != "$PVC_SIZE" ]; then
+                    echo "Model size mismatch: baked size ($BAKED_SIZE) != PVC size ($PVC_SIZE). Forcing re-seeding."
+                    RESEED=true
+                  fi
+                fi
+              fi
+
+              if [ "$RESEED" = "true" ]; then
+                echo "Initialising pretrained PVC from baked-in artefacts..."
+                cp -r /app/pretrained_baked/. /app/pretrained/
+                echo "Done."
+              else
+                echo "Pretrained PVC already initialised — skipping."
+              fi
+          volumeMounts:
+            - name: ml-pretrained
+              mountPath: /app/pretrained
+      volumes:
+        - name: ml-models
+          persistentVolumeClaim:
+            claimName: ml-models-pvc
+        - name: ml-pretrained
+          hostPath:
+            path: /data/scalable/pretrained
+            type: DirectoryOrCreate
+        - name: ml-charts
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scalable-ml-service
+  namespace: scalable-weather-app
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+  selector:
+    app: scalable-ml-service
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-models-pvc
+  namespace: scalable-weather-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
